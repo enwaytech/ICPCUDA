@@ -4,17 +4,17 @@ project(ICP)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules" ${CMAKE_MODULE_PATH})
 
-find_package(Pangolin REQUIRED)
+set(SOURCES_DIR src)
+
 find_package(Eigen3 REQUIRED)
 find_package(CUDA REQUIRED)
 find_package(Sophus REQUIRED)
+find_package(Pangolin)
 
-include_directories(${Pangolin_INCLUDE_DIRS})
 include_directories(${CUDA_INCLUDE_DIRS})
 include_directories(${EIGEN_INCLUDE_DIRS})
 include_directories(${Sophus_INCLUDE_DIR})
 
-file(GLOB srcs src/*.cpp)
 file(GLOB cuda src/Cuda/*.cu)
 file(GLOB containers src/Cuda/containers/*.cpp)
 
@@ -31,15 +31,44 @@ CUDA_COMPILE(cuda_objs ${cuda})
 
 set(CMAKE_CXX_FLAGS "-O3 -msse2 -msse3 -Wall -std=c++11")
 
-add_executable(ICP
-               ${srcs}
-               ${cuda}
-               ${cuda_objs}
-               ${containers}
-)
+#######################################
+#            ICPCUDA Lib              #
+#######################################
 
-target_link_libraries(ICP
-                      ${Pangolin_LIBRARIES}
-                      ${Eigen_LIBRARIES}
-                      ${CUDA_LIBRARIES}
-)
+set(ICPCUDA_LIBRARY "icpcuda")
+add_library(${ICPCUDA_LIBRARY} ${SOURCES_DIR}/ICPOdometry.cpp
+    ${cuda}
+    ${cuda_objs}
+    ${containers}
+    )
+target_link_libraries(${ICPCUDA_LIBRARY}
+    ${Eigen_LIBRARIES}
+    ${CUDA_LIBRARIES}
+    )
+install(TARGETS ${ICPCUDA_LIBRARY}
+    DESTINATION lib/icpcuda)
+install(DIRECTORY ${SOURCES_DIR}/ DESTINATION include/icpcuda
+    FILES_MATCHING REGEX "^.*\\.(h|hpp)$"
+    )
+configure_file(
+    "${CMAKE_MODULE_PATH}/cmake_uninstall.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+    IMMEDIATE @ONLY)
+add_custom_target(uninstall
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
+
+#######################################
+#              ICP app                #
+#######################################
+
+if(${Pangolin_FOUND})
+    include_directories(${Pangolin_INCLUDE_DIRS})
+    add_executable(ICP ${SOURCES_DIR}/ICP.cpp )
+    target_link_libraries(ICP
+        ${ICPCUDA_LIBRARY}
+        ${Pangolin_LIBRARIES}
+    )
+else(${Pangolin_FOUND})
+    message(WARNING "Could not find Pangolin, which is required to build the sample application.
+Please give some paths to CMake or make sure Pangolin is installed in your system.")
+endif(${Pangolin_FOUND})
