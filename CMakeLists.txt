@@ -4,6 +4,8 @@ project(ICPCUDA)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules" ${CMAKE_MODULE_PATH})
 
+set(CMAKE_BUILD_TYPE Release)
+
 set(SOURCES_DIR src)
 
 find_package(Eigen3 REQUIRED)
